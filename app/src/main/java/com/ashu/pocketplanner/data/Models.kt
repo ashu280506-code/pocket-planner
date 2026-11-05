@@ -64,6 +64,8 @@ data class Settings(
     val digest: Boolean = true,
     val digestHour: Int = 8,
     val askedNotif: Boolean = false,
+    val name: String = "",
+    val onboarded: Boolean = false,
 )
 
 data class AppState(

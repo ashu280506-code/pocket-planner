@@ -35,6 +35,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -114,6 +116,34 @@ fun SettingsScreen(s: AppState, repo: Repo, photo: ImageBitmap?, onClose: () -> 
                     }
                     Text("Settings", style = MaterialTheme.typography.headlineMedium, color = p.text, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     if (busy) CircularProgressIndicator(Modifier.size(22.dp), color = p.accent, strokeWidth = 2.dp)
+                }
+            }
+
+            item {
+                var nameText by remember { mutableStateOf(st.name) }
+                Card("You") {
+                    OutlinedTextField(
+                        value = nameText,
+                        onValueChange = { v ->
+                            if (v.length <= 24) {
+                                nameText = v
+                                repo.settings { it.copy(name = v.trim()) }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Your name") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = p.accent,
+                            unfocusedBorderColor = p.border,
+                            focusedTextColor = p.text,
+                            unfocusedTextColor = p.text,
+                            cursorColor = p.accent,
+                            focusedLabelColor = p.accent,
+                            unfocusedLabelColor = p.sub,
+                        ),
+                    )
                 }
             }
 

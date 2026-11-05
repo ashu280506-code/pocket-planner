@@ -20,11 +20,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -33,10 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,10 +48,8 @@ import com.ashu.pocketplanner.data.Repeat
 import com.ashu.pocketplanner.logic.EmojiGuess
 import com.ashu.pocketplanner.logic.Fmt
 import com.ashu.pocketplanner.logic.Plan
-import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
-import java.time.ZoneOffset
 
 sealed interface Editing {
     data class New(val date: LocalDate?) : Editing
@@ -94,8 +86,6 @@ fun EditSheet(
     var repeat by remember { mutableStateOf(orig?.repeat ?: Repeat.NONE) }
     var urgent by remember { mutableStateOf(orig?.urgent ?: false) }
     var countdown by remember { mutableStateOf(orig?.countdown ?: false) }
-    var showDate by remember { mutableStateOf(false) }
-    var showTime by remember { mutableStateOf(false) }
     var showEmoji by remember { mutableStateOf(false) }
 
     val emoji = pickedEmoji.ifBlank { EmojiGuess.guess(title) }
@@ -208,19 +198,34 @@ fun EditSheet(
                 val d = date
                 GlassChip("Today", d == today) { date = today }
                 GlassChip("Tomorrow", d == today.plusDays(1)) { date = today.plusDays(1) }
-                val custom = d != null && d != today && d != today.plusDays(1)
-                GlassChip(if (custom && d != null) Fmt.day(d) else "Pick date", custom) { showDate = true }
+                GlassChip("Pick on calendar", d != null && d != today && d != today.plusDays(1)) { if (date == null) date = today }
                 GlassChip("No date (note)", d == null) { date = null }
             }
 
-            if (date != null) {
+            val chosen = date
+            if (chosen != null) {
+                Text(
+                    "${Fmt.longDay(chosen)} · ${Fmt.rel(chosen, today)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = p.accent,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                MiniCalendar(chosen, today) { date = it }
+
                 Label("Time")
                 ChipRow {
                     val t = time
                     GlassChip("No time", t == null) { time = null }
+                    GlassChip("Set a time", t != null) { if (time == null) time = LocalTime.of(9, 0) }
                     TIME_PRESETS.forEach { pt -> GlassChip(Fmt.time(pt), t == pt) { time = pt } }
-                    val customTime = t != null && t !in TIME_PRESETS
-                    GlassChip(if (customTime && t != null) Fmt.time(t) else "Pick time", customTime) { showTime = true }
+                }
+                val t = time
+                if (t != null) {
+                    Glass(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
+                            TimeWheel(t) { time = it }
+                        }
+                    }
                 }
 
                 Label("Repeat")
@@ -264,38 +269,4 @@ fun EditSheet(
         }
     }
 
-    if (showDate) {
-        val st = rememberDatePickerState(
-            initialSelectedDateMillis = (date ?: today).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDate = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    st.selectedDateMillis?.let { date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
-                    showDate = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { showDate = false }) { Text("Cancel") } },
-        ) {
-            DatePicker(state = st)
-        }
-    }
-
-    if (showTime) {
-        val st = rememberTimePickerState(initialHour = time?.hour ?: 9, initialMinute = time?.minute ?: 0, is24Hour = false)
-        AlertDialog(
-            onDismissRequest = { showTime = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    time = LocalTime.of(st.hour, st.minute)
-                    showTime = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { showTime = false }) { Text("Cancel") } },
-            title = { Text("Pick a time") },
-            text = { TimePicker(state = st) },
-            containerColor = p.sheet,
-        )
-    }
 }

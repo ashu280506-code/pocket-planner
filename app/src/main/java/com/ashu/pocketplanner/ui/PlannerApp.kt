@@ -106,6 +106,12 @@ private fun AskForNotifications(asked: Boolean, onAsked: () -> Unit) {
 @Composable
 fun PlannerApp(repo: Repo, addKey: Int) {
     val s by repo.state.collectAsState()
+    if (!s.settings.onboarded) {
+        PlannerTheme(s.settings) {
+            WelcomeScreen(s.settings) { n -> repo.settings { it.copy(name = n, onboarded = true) } }
+        }
+        return
+    }
     PlannerTheme(s.settings) {
         val p = LocalPalette.current
         val scope = rememberCoroutineScope()
@@ -126,7 +132,7 @@ fun PlannerApp(repo: Repo, addKey: Int) {
             delay(900)
             if (s.settings.glyph) GlyphFx.progress(Plan.todayProgress(s, LocalDate.now()))
         }
-        AskForNotifications(s.settings.askedNotif) { repo.settings { it.copy(askedNotif = true) } }
+        if (s.settings.onboarded) AskForNotifications(s.settings.askedNotif) { repo.settings { it.copy(askedNotif = true) } }
 
         fun say(msg: String, undo: Snapshot? = null) {
             scope.launch {
@@ -228,6 +234,7 @@ fun PlannerApp(repo: Repo, addKey: Int) {
                 when (tab) {
                     0 -> TodayScreen(
                         s, today, mod,
+                        name = s.settings.name,
                         quickText = quickText,
                         onQuickText = { quickText = it },
                         onQuickAdd = { quickAdd(it) },

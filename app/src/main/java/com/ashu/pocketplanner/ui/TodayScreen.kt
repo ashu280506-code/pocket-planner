@@ -2,6 +2,7 @@ package com.ashu.pocketplanner.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,7 +23,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +42,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.ashu.pocketplanner.data.AppState
 import com.ashu.pocketplanner.data.Completion
@@ -49,11 +56,28 @@ import com.ashu.pocketplanner.logic.QuickParse
 import java.time.LocalDate
 import java.time.LocalTime
 
-private fun greeting(): String = when (LocalTime.now().hour) {
-    in 5..11 -> "Good morning"
-    in 12..16 -> "Good afternoon"
-    in 17..21 -> "Good evening"
-    else -> "Night owl mode"
+/** The headline that changes with how full the day is. */
+private fun vibe(total: Int, done: Int): String {
+    val left = total - done
+    return when {
+        total == 0 -> "A free day ☀️"
+        left == 0 -> "All done. Nice! 🎉"
+        left <= 2 -> "A light day 🌿"
+        left <= 5 -> "A steady day ✌️"
+        else -> "A busy day 💪"
+    }
+}
+
+private fun untilText(t: LocalTime): String {
+    val now = LocalTime.now()
+    val mins = java.time.Duration.between(now, t).toMinutes()
+    return when {
+        mins < 0 -> "earlier today"
+        mins < 1 -> "now"
+        mins < 60 -> "in $mins min"
+        mins % 60 == 0L -> "in ${mins / 60}h"
+        else -> "in ${mins / 60}h ${mins % 60}m"
+    }
 }
 
 @Composable
@@ -61,6 +85,7 @@ fun TodayScreen(
     s: AppState,
     today: LocalDate,
     modifier: Modifier,
+    name: String,
     quickText: String,
     onQuickText: (String) -> Unit,
     onQuickAdd: (String) -> Unit,
@@ -82,28 +107,77 @@ fun TodayScreen(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item { Header(greeting(), Fmt.longDay(today), onSettings) }
+        item {
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (name.isBlank()) "Hello 👋" else "Hello, $name 👋",
+                        style = MaterialTheme.typography.displaySmall,
+                        color = p.text,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                    )
+                    Text(Fmt.longDay(today), style = MaterialTheme.typography.titleMedium, color = p.sub)
+                }
+                IconButton(onClick = onSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = p.text)
+                }
+            }
+        }
+
+        item {
+            val urgent = (overdue + open).count { it.urgent }
+            val next = open.firstOrNull { it.time != null && !it.time.isBefore(LocalTime.now()) } ?: overdue.firstOrNull() ?: open.firstOrNull()
+            Glass(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
+                Row(Modifier.padding(start = 20.dp, end = 18.dp, top = 20.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(vibe(total, done.size), style = MaterialTheme.typography.headlineSmall, color = p.text, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            buildString {
+                                if (total == 0) append("Nothing planned. Enjoy it.") else append("${done.size} of $total done")
+                                if (urgent > 0) append(" · $urgent urgent")
+                                if (overdue.isNotEmpty()) append(" · ${overdue.size} overdue")
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (overdue.isNotEmpty()) p.danger else p.sub,
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    ProgressRing(done.size, total, 84.dp)
+                }
+                if (next != null) {
+                    HorizontalDivider(thickness = 0.5.dp, color = p.border)
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onOpen(next) }.padding(horizontal = 20.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("NEXT UP", style = MaterialTheme.typography.labelSmall, color = p.warm, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                        Spacer(Modifier.width(12.dp))
+                        Text(next.emoji.ifBlank { "📌" }, fontSize = 18.sp)
+                        Spacer(Modifier.width(6.dp))
+                        Text(next.title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = p.text, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        val nt = next.time
+                        val d = next.date
+                        Text(
+                            when {
+                                d != null && d.isBefore(today) -> Fmt.late(d, today)
+                                nt != null -> "${Fmt.time(nt)} · ${untilText(nt)}"
+                                else -> "anytime"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (d != null && d.isBefore(today)) p.danger else p.sub,
+                        )
+                    }
+                }
+            }
+        }
 
         item {
             Glass(Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    ProgressRing(done.size, total)
-                    Spacer(Modifier.width(16.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            when {
-                                total == 0 -> "A free day"
-                                done.size == total -> "All done. Nice!"
-                                else -> "${done.size} of $total done"
-                            },
-                            style = MaterialTheme.typography.titleLarge,
-                            color = p.text,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text("How's today feeling?", style = MaterialTheme.typography.bodySmall, color = p.sub)
-                        Spacer(Modifier.width(4.dp))
-                        MoodPicker(s.moods[today], onMood)
-                    }
+                Row(Modifier.padding(start = 18.dp, end = 10.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("How's today?", style = MaterialTheme.typography.bodyMedium, color = p.sub, modifier = Modifier.weight(1f))
+                    MoodPicker(s.moods[today], onMood)
                 }
             }
         }

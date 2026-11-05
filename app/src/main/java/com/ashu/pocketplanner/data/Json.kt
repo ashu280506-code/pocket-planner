@@ -78,6 +78,7 @@ object Json {
         put("widgetSkin", s.widgetSkin.name); put("widgetFont", s.widgetFont.name)
         put("widgetFog", s.widgetFog.toDouble()); put("widgetPhotoVersion", s.widgetPhotoVersion)
         put("digest", s.digest); put("digestHour", s.digestHour); put("askedNotif", s.askedNotif)
+        put("name", s.name); put("onboarded", s.onboarded)
     }
 
     private fun settings(o: JSONObject): Settings {
@@ -98,6 +99,8 @@ object Json {
             digest = o.optBoolean("digest", d.digest),
             digestHour = o.optInt("digestHour", d.digestHour),
             askedNotif = o.optBoolean("askedNotif", false),
+            name = o.optString("name", ""),
+            onboarded = o.optBoolean("onboarded", false),
         )
     }
 
