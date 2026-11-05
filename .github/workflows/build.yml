@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +23,13 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      - name: Prepare Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          SDKM=$(ls $ANDROID_HOME/cmdline-tools/*/bin/sdkmanager | head -1)
+          yes | $SDKM --licenses > /dev/null || true
+          $SDKM --install "platforms;android-36" "build-tools;36.0.0" > /dev/null || true
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - uses: gradle/actions/setup-gradle@v4
 
@@ -59,7 +65,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           touch build.log
+          # Annotations are readable on the public repo, so put the first errors there too.
+          grep -E "^e: |error:|What went wrong|Could not|FAILURE" build.log | head -40 | split -l 4 - err_ || true
+          for f in err_*; do [ -f "$f" ] && echo "::error::$(tr '\n' ' ' < $f | cut -c1-3500)"; done
           { grep -nE "^e: |error:|What went wrong|FAILED|Unresolved|Could not" -A4 build.log | head -400; echo "-----"; tail -120 build.log; } > errors.txt || true
           gh release delete build-failed --yes --cleanup-tag || true
-          gh release create build-failed errors.txt build.log --prerelease \
+          gh release create build-failed errors.txt build.log --prerelease --target "${{ github.sha }}" \
             --title "Last build failed" --notes "Build ${{ github.run_number }} failed. errors.txt has the details."
