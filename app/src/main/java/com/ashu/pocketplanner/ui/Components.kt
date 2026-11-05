@@ -35,6 +35,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -364,5 +365,48 @@ fun ToggleRow(title: String, sub: String, checked: Boolean, onChange: (Boolean) 
                 uncheckedBorderColor = p.border,
             ),
         )
+    }
+}
+
+/** A note about the day: what went well, what to do better. Saves itself as you type. */
+@Composable
+fun RemarkCard(day: java.time.LocalDate, saved: String, title: String, onSave: (String) -> Unit) {
+    val p = LocalPalette.current
+    var text by androidx.compose.runtime.remember(day) { androidx.compose.runtime.mutableStateOf(saved) }
+    val latestSave by androidx.compose.runtime.rememberUpdatedState(onSave)
+    androidx.compose.runtime.LaunchedEffect(day, text) {
+        if (text != saved) {
+            kotlinx.coroutines.delay(700)
+            latestSave(text.trim())
+        }
+    }
+    Glass(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("📝  " + title, style = MaterialTheme.typography.titleMedium, color = p.text, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                if (text.isNotBlank() && text.trim() == saved) Text("Saved", style = MaterialTheme.typography.labelSmall, color = p.sub)
+            }
+            androidx.compose.material3.TextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("What went well? What can I do better tomorrow?", color = p.sub) },
+                minLines = 3,
+                textStyle = MaterialTheme.typography.bodyMedium,
+                shape = RoundedCornerShape(14.dp),
+                colors = androidx.compose.material3.TextFieldDefaults.colors(
+                    focusedContainerColor = p.glass,
+                    unfocusedContainerColor = p.glass,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTextColor = p.text,
+                    unfocusedTextColor = p.text,
+                    cursorColor = p.accent,
+                ),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
+                ),
+            )
+        }
     }
 }

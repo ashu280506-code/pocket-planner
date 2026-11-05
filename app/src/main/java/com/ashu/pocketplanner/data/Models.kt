@@ -8,7 +8,7 @@ enum class Repeat(val label: String) {
 }
 
 enum class ThemePreset(val label: String) {
-    MIDNIGHT("Midnight Fog"), SUNSET("Sunset Glass"), AURORA("Aurora"), DOT("Dot Matrix"), PHOTO("Your Photo")
+    MIDNIGHT("Midnight Fog"), SUNSET("Sunset Glass"), AURORA("Aurora"), DOT("Dot Matrix"), PHOTO("Your Photo"), CUSTOM("Your colour")
 }
 
 enum class FontChoice(val label: String) {
@@ -65,6 +65,8 @@ data class Settings(
     val digestHour: Int = 8,
     val askedNotif: Boolean = false,
     val name: String = "",
+    /** Background colour picked on the colour wheel (ARGB). */
+    val customColor: Long = 0xFF2B2F6BL,
     val onboarded: Boolean = false,
 )
 
@@ -72,6 +74,8 @@ data class AppState(
     val reminders: List<Reminder> = emptyList(),
     val history: List<Completion> = emptyList(),
     val moods: Map<LocalDate, Int> = emptyMap(),
+    /** A short note about the day: what went well, what to do better. */
+    val remarks: Map<LocalDate, String> = emptyMap(),
     val settings: Settings = Settings(),
     val lastCheck: Long = 0L,
 )

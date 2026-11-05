@@ -60,6 +60,7 @@ fun CalendarScreen(
     onOpen: (Reminder) -> Unit,
     onAdd: (LocalDate) -> Unit,
     onMood: (LocalDate, Int?) -> Unit,
+    onRemark: (LocalDate, String) -> Unit,
     onSettings: () -> Unit,
 ) {
     val p = LocalPalette.current
@@ -138,6 +139,9 @@ fun CalendarScreen(
                             MoodPicker(s.moods[selected]) { onMood(selected, it) }
                         }
                     }
+                }
+                if (!selected.isAfter(today)) {
+                    RemarkCard(selected, s.remarks[selected] ?: "", if (selected == today) "Remark for today" else "Remark") { onRemark(selected, it) }
                 }
                 if (open.isEmpty() && done.isEmpty()) {
                     EmptyCard("Nothing planned", "Tap Add to put something on ${Fmt.day(selected)}.")

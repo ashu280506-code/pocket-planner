@@ -139,14 +139,20 @@ fun TimeWheel(time: LocalTime, onChange: (LocalTime) -> Unit) {
 
 /** A month grid for picking a day, shown right inside the add sheet. */
 @Composable
-fun MiniCalendar(selected: LocalDate?, today: LocalDate, onSelect: (LocalDate) -> Unit) {
+fun MiniCalendar(selected: LocalDate?, today: LocalDate, framed: Boolean = true, onSelect: (LocalDate) -> Unit) {
     val p = LocalPalette.current
     var month by remember { mutableStateOf(YearMonth.from(selected ?: today)) }
     LaunchedEffect(selected) { if (selected != null) month = YearMonth.from(selected) }
-    Glass(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(10.dp)) {
+    val body: @Composable () -> Unit = { MonthGrid(month, { month = it }, selected, today, onSelect) }
+    if (framed) Glass(Modifier.fillMaxWidth()) { Box(Modifier.padding(10.dp)) { body() } } else body()
+}
+
+@Composable
+private fun MonthGrid(month: YearMonth, onMonth: (YearMonth) -> Unit, selected: LocalDate?, today: LocalDate, onSelect: (LocalDate) -> Unit) {
+    val p = LocalPalette.current
+        Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { month = month.minusMonths(1) }) {
+                IconButton(onClick = { onMonth(month.minusMonths(1)) }) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month", tint = p.text)
                 }
                 Text(
@@ -157,7 +163,7 @@ fun MiniCalendar(selected: LocalDate?, today: LocalDate, onSelect: (LocalDate) -
                     color = p.text,
                     fontWeight = FontWeight.SemiBold,
                 )
-                IconButton(onClick = { month = month.plusMonths(1) }) {
+                IconButton(onClick = { onMonth(month.plusMonths(1)) }) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month", tint = p.text)
                 }
             }
@@ -206,5 +212,4 @@ fun MiniCalendar(selected: LocalDate?, today: LocalDate, onSelect: (LocalDate) -
                 }
             }
         }
-    }
 }

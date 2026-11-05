@@ -131,6 +131,7 @@ object Plan {
             history = s.history.filter { it.at >= cutoff },
             reminders = s.reminders.filterNot { it.done && it.repeat == Repeat.NONE && it.doneAt in 1 until cutoff },
             moods = s.moods.filterKeys { !it.isBefore(moodCutoff) },
+            remarks = s.remarks.filter { (d, t) -> t.isNotBlank() && !d.isBefore(moodCutoff) },
         )
     }
 }

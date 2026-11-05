@@ -242,6 +242,7 @@ fun PlannerApp(repo: Repo, addKey: Int) {
                         onUntick = { untick(it) },
                         onOpen = { editing = Editing.Edit(it) },
                         onMood = { repo.setMood(LocalDate.now(), it) },
+                        onRemark = { repo.setRemark(LocalDate.now(), it) },
                         onSettings = { settingsOpen = true },
                     )
                     1 -> CalendarScreen(
@@ -252,6 +253,7 @@ fun PlannerApp(repo: Repo, addKey: Int) {
                         onOpen = { editing = Editing.Edit(it) },
                         onAdd = { editing = Editing.New(it) },
                         onMood = { d, m -> repo.setMood(d, m) },
+                        onRemark = { d, t -> repo.setRemark(d, t) },
                         onSettings = { settingsOpen = true },
                     )
                     2 -> NotesScreen(

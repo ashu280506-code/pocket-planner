@@ -93,6 +93,7 @@ fun TodayScreen(
     onUntick: (Completion) -> Unit,
     onOpen: (Reminder) -> Unit,
     onMood: (Int?) -> Unit,
+    onRemark: (String) -> Unit,
     onSettings: () -> Unit,
 ) {
     val p = LocalPalette.current
@@ -233,6 +234,8 @@ fun TodayScreen(
                 }
             }
         }
+
+        item { RemarkCard(today, s.remarks[today] ?: "", "Remark for today", onRemark) }
     }
 }
 

@@ -9,6 +9,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -38,7 +39,40 @@ data class Palette(
 
 private fun c(v: Long) = Color(v)
 
+private fun hsv(h: Float, sat: Float, v: Float): Color =
+    Color(android.graphics.Color.HSVToColor(floatArrayOf(((h % 360f) + 360f) % 360f, sat.coerceIn(0f, 1f), v.coerceIn(0f, 1f))))
+
+/** Your own background colour: the colour itself is the background, everything else is matched to it. */
+private fun customPalette(argb: Long): Palette {
+    val base = Color(argb)
+    val hsvArr = FloatArray(3)
+    android.graphics.Color.colorToHSV(argb.toInt(), hsvArr)
+    val (h, sat, v) = Triple(hsvArr[0], hsvArr[1], hsvArr[2])
+    val dark = base.luminance() < 0.42f
+    val blobs = listOf(
+        hsv(h - 35f, sat * 0.9f + 0.1f, if (dark) v + 0.35f else v - 0.2f),
+        hsv(h + 40f, sat * 0.9f + 0.1f, if (dark) v + 0.3f else v - 0.15f),
+        hsv(h + 180f, 0.45f, if (dark) 0.85f else 0.9f),
+    )
+    return if (dark) Palette(
+        dark = true, base = base, blobs = blobs, blobAlpha = 0.45f,
+        accent = hsv(h + 160f, 0.45f, 1f), onAccent = Color(0xFF15112E), warm = Color(0xFFFFB547),
+        text = Color(0xFFF7F6FF), sub = Color(0xC2F7F6FF),
+        glass = Color.White.copy(alpha = 0.08f), glassHi = Color.White.copy(alpha = 0.14f),
+        border = Color.White.copy(alpha = 0.18f), sheet = hsv(h, sat, (v * 0.55f).coerceAtLeast(0.08f)),
+        danger = Color(0xFFFF7A8A), dots = false,
+    ) else Palette(
+        dark = false, base = base, blobs = blobs, blobAlpha = 0.35f,
+        accent = hsv(h + 160f, 0.8f, 0.5f), onAccent = Color.White, warm = Color(0xFFC46A00),
+        text = Color(0xFF16142A), sub = Color(0xFF16142A).copy(alpha = 0.68f),
+        glass = Color.White.copy(alpha = 0.42f), glassHi = Color.White.copy(alpha = 0.62f),
+        border = Color.White.copy(alpha = 0.8f), sheet = hsv(h, sat * 0.25f, 0.98f),
+        danger = Color(0xFFC62839), dots = false,
+    )
+}
+
 fun paletteFor(s: Settings): Palette {
+    if (s.theme == ThemePreset.CUSTOM) return customPalette(s.customColor)
     val dark = s.dark
     val blobs = when (s.theme) {
         ThemePreset.SUNSET -> listOf(c(0xFFFF6B3D), c(0xFFFF2E7E), c(0xFFFFB23E), c(0xFF8A3CFF))
@@ -152,7 +186,7 @@ val LocalFonts = staticCompositionLocalOf { Fonts(FontFamily.Default, FontFamily
 
 @Composable
 fun PlannerTheme(settings: Settings, content: @Composable () -> Unit) {
-    val p = remember(settings.theme, settings.dark) { paletteFor(settings) }
+    val p = remember(settings.theme, settings.dark, settings.customColor) { paletteFor(settings) }
     val f = remember(settings.font) { fontsFor(settings.font) }
     val typography = remember(f) { typographyFor(f) }
     val scheme = if (p.dark) {

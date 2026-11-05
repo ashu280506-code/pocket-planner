@@ -141,5 +141,9 @@ class Repo private constructor(private val app: Context) {
         s.copy(moods = if (mood == null) s.moods - day else s.moods + (day to mood))
     }
 
+    fun setRemark(day: LocalDate, text: String) = edit { s ->
+        s.copy(remarks = if (text.isBlank()) s.remarks - day else s.remarks + (day to text))
+    }
+
     fun settings(fn: (Settings) -> Settings) = edit { it.copy(settings = fn(it.settings)) }
 }

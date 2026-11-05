@@ -15,6 +15,7 @@ object Json {
         o.put("reminders", JSONArray().apply { s.reminders.forEach { put(rem(it)) } })
         o.put("history", JSONArray().apply { s.history.forEach { put(comp(it)) } })
         o.put("moods", JSONObject().apply { s.moods.forEach { (d, m) -> put(d.toString(), m) } })
+        o.put("remarks", JSONObject().apply { s.remarks.forEach { (d, t) -> put(d.toString(), t) } })
         o.put("settings", settings(s.settings))
         o.put("lastCheck", s.lastCheck)
         return o.toString()
@@ -26,8 +27,10 @@ object Json {
         val hist = o.optJSONArray("history")?.let { a -> (0 until a.length()).mapNotNull { runCatching { comp(a.getJSONObject(it)) }.getOrNull() } }.orEmpty()
         val moods = mutableMapOf<LocalDate, Int>()
         o.optJSONObject("moods")?.let { m -> m.keys().forEach { k -> runCatching { moods[LocalDate.parse(k)] = m.getInt(k) } } }
+        val remarks = mutableMapOf<LocalDate, String>()
+        o.optJSONObject("remarks")?.let { m -> m.keys().forEach { k -> runCatching { remarks[LocalDate.parse(k)] = m.getString(k) } } }
         val st = o.optJSONObject("settings")?.let { settings(it) } ?: Settings()
-        return AppState(rems, hist, moods, st, o.optLong("lastCheck", 0L))
+        return AppState(rems, hist, moods, remarks, st, o.optLong("lastCheck", 0L))
     }
 
     private fun timeStr(t: LocalTime) = String.format(Locale.US, "%02d:%02d", t.hour, t.minute)
@@ -78,7 +81,7 @@ object Json {
         put("widgetSkin", s.widgetSkin.name); put("widgetFont", s.widgetFont.name)
         put("widgetFog", s.widgetFog.toDouble()); put("widgetPhotoVersion", s.widgetPhotoVersion)
         put("digest", s.digest); put("digestHour", s.digestHour); put("askedNotif", s.askedNotif)
-        put("name", s.name); put("onboarded", s.onboarded)
+        put("name", s.name); put("onboarded", s.onboarded); put("customColor", s.customColor)
     }
 
     private fun settings(o: JSONObject): Settings {
@@ -101,6 +104,7 @@ object Json {
             askedNotif = o.optBoolean("askedNotif", false),
             name = o.optString("name", ""),
             onboarded = o.optBoolean("onboarded", false),
+            customColor = o.optLong("customColor", d.customColor),
         )
     }
 

@@ -42,6 +42,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -70,6 +72,7 @@ import com.ashu.pocketplanner.fx.Sound
 import com.ashu.pocketplanner.logic.Fmt
 import com.ashu.pocketplanner.notify.Alarms
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -149,7 +152,7 @@ fun SettingsScreen(s: AppState, repo: Repo, photo: ImageBitmap?, onClose: () -> 
 
             item {
                 Card("Look") {
-                    ToggleRow("Dark mode", "On by default. Turn off for the light Paper look.", st.dark) { v -> repo.settings { it.copy(dark = v) } }
+                    ToggleRow("Dark mode", "On by default. Turn off for the light Paper look. Your own colour sets its own brightness.", st.dark) { v -> repo.settings { it.copy(dark = v) } }
                     Label("Theme")
                     ChipRowPadded {
                         ThemePreset.entries.forEach { t ->
@@ -158,6 +161,15 @@ fun SettingsScreen(s: AppState, repo: Repo, photo: ImageBitmap?, onClose: () -> 
                                 else repo.settings { it.copy(theme = t) }
                             }
                         }
+                    }
+                    if (st.theme == ThemePreset.CUSTOM) {
+                        var picked by remember { mutableStateOf(st.customColor) }
+                        LaunchedEffect(picked) {
+                            delay(120)
+                            if (picked != repo.state.value.settings.customColor) repo.settings { it.copy(customColor = picked) }
+                        }
+                        Label("Background colour")
+                        ColorWheel(st.customColor) { picked = it }
                     }
                     Label("Font")
                     ChipRowPadded {
@@ -373,7 +385,10 @@ private fun ThemeSwatch(t: ThemePreset, selected: Boolean, photo: ImageBitmap?, 
             Modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(preview.base) + preview.blobs.take(3)))
+                .background(
+                    if (t == ThemePreset.CUSTOM) Brush.sweepGradient(listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red))
+                    else Brush.linearGradient(listOf(preview.base) + preview.blobs.take(3))
+                )
                 .border(if (selected) 3.dp else 1.dp, if (selected) p.accent else p.border, CircleShape),
             contentAlignment = Alignment.Center,
         ) {

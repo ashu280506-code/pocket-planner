@@ -39,6 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -62,7 +64,6 @@ private val EMOJIS = listOf(
     "❤️", "⭐", "🔥", "🎯", "😴", "🐶", "⚽", "🏏",
 )
 
-private val TIME_PRESETS = listOf(LocalTime.of(9, 0), LocalTime.of(13, 0), LocalTime.of(18, 0), LocalTime.of(21, 0))
 
 @Composable
 fun EditSheet(
@@ -87,6 +88,7 @@ fun EditSheet(
     var urgent by remember { mutableStateOf(orig?.urgent ?: false) }
     var countdown by remember { mutableStateOf(orig?.countdown ?: false) }
     var showEmoji by remember { mutableStateOf(false) }
+    var openRow by remember { mutableStateOf<String?>(null) }
 
     val emoji = pickedEmoji.ifBlank { EmojiGuess.guess(title) }
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -193,38 +195,43 @@ fun EditSheet(
                 }
             }
 
-            Label("When")
-            ChipRow {
-                val d = date
-                GlassChip("Today", d == today) { date = today }
-                GlassChip("Tomorrow", d == today.plusDays(1)) { date = today.plusDays(1) }
-                GlassChip("Pick on calendar", d != null && d != today && d != today.plusDays(1)) { if (date == null) date = today }
-                GlassChip("No date (note)", d == null) { date = null }
+            DropRow(
+                icon = "📅",
+                label = "Date",
+                value = date?.let { "${Fmt.day(it)} · ${Fmt.rel(it, today)}" } ?: "No date (note)",
+                expanded = openRow == "date",
+                onToggle = { openRow = if (openRow == "date") null else "date" },
+            ) {
+                MiniCalendar(date, today, framed = false) {
+                    date = it
+                    openRow = "time"
+                    if (time == null) time = LocalTime.now().plusHours(1).withMinute(0).withSecond(0).withNano(0)
+                }
+                Row {
+                    TextButton(onClick = { date = null; time = null; openRow = null }) { Text("No date, keep as a note", color = p.sub) }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { if (date == null) date = today; openRow = null }) { Text("Done", color = p.accent, fontWeight = FontWeight.Bold) }
+                }
             }
 
             val chosen = date
             if (chosen != null) {
-                Text(
-                    "${Fmt.longDay(chosen)} · ${Fmt.rel(chosen, today)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = p.accent,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                MiniCalendar(chosen, today) { date = it }
-
-                Label("Time")
-                ChipRow {
+                DropRow(
+                    icon = "⏰",
+                    label = "Time",
+                    value = time?.let { Fmt.time(it) } ?: "No time",
+                    expanded = openRow == "time",
+                    onToggle = {
+                        openRow = if (openRow == "time") null else "time"
+                        if (openRow == "time" && time == null) time = LocalTime.now().plusHours(1).withMinute(0).withSecond(0).withNano(0)
+                    },
+                ) {
                     val t = time
-                    GlassChip("No time", t == null) { time = null }
-                    GlassChip("Set a time", t != null) { if (time == null) time = LocalTime.of(9, 0) }
-                    TIME_PRESETS.forEach { pt -> GlassChip(Fmt.time(pt), t == pt) { time = pt } }
-                }
-                val t = time
-                if (t != null) {
-                    Glass(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
-                            TimeWheel(t) { time = it }
-                        }
+                    if (t != null) TimeWheel(t) { time = it }
+                    Row {
+                        TextButton(onClick = { time = null; openRow = null }) { Text("No time", color = p.sub) }
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = { openRow = null }) { Text("Done", color = p.accent, fontWeight = FontWeight.Bold) }
                     }
                 }
 
@@ -269,4 +276,39 @@ fun EditSheet(
         }
     }
 
+}
+
+/** A row that opens like a drop-down menu: tap to show the picker under it. */
+@Composable
+private fun DropRow(
+    icon: String,
+    label: String,
+    value: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val p = LocalPalette.current
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (expanded) 180f else 0f, label = "arrow")
+    Glass(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(icon, fontSize = 20.sp)
+            Spacer(Modifier.width(12.dp))
+            Text(label, style = MaterialTheme.typography.bodyLarge, color = p.sub, modifier = Modifier.weight(1f))
+            Text(value, style = MaterialTheme.typography.bodyLarge, color = p.text, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.width(6.dp))
+            androidx.compose.material3.Icon(
+                androidx.compose.material.icons.Icons.Filled.KeyboardArrowDown,
+                contentDescription = if (expanded) "Close" else "Open",
+                tint = p.sub,
+                modifier = Modifier.graphicsLayer { rotationZ = turn },
+            )
+        }
+        androidx.compose.animation.AnimatedVisibility(visible = expanded) {
+            Column(Modifier.padding(start = 10.dp, end = 10.dp, bottom = 6.dp)) { content() }
+        }
+    }
 }
