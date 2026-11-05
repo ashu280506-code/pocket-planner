@@ -58,6 +58,23 @@ object Plan {
     fun dayOpen(s: AppState, day: LocalDate, today: LocalDate): List<Reminder> =
         s.reminders.filter { occursOn(it, day) && !(day == today && isOverdue(it, today)) }.sortedWith(order)
 
+    /** Everything open on a day, in the order used for the coloured dots. */
+    fun dayList(s: AppState, day: LocalDate, today: LocalDate): List<Reminder> =
+        if (day == today) dayOpen(s, day, today) + overdue(s, today) else dayOpen(s, day, today)
+
+    /** Today, then every later day that has something on it (repeats included), up to a year ahead. */
+    fun scheduledDays(s: AppState, today: LocalDate, max: Int = 120): List<LocalDate> {
+        val out = mutableListOf(today)
+        var d = today.plusDays(1)
+        var i = 0
+        while (i < 366 && out.size < max) {
+            if (countOn(s, d) > 0) out += d
+            d = d.plusDays(1)
+            i++
+        }
+        return out
+    }
+
     fun todayOpen(s: AppState, today: LocalDate): List<Reminder> = overdue(s, today) + dayOpen(s, today, today)
 
     fun doneOn(s: AppState, day: LocalDate): List<Completion> = s.history.filter { it.date == day }.sortedBy { it.at }

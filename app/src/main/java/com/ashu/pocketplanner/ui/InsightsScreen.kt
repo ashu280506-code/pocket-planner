@@ -131,7 +131,7 @@ fun InsightsScreen(
                     StatCard(
                         Modifier.weight(1f),
                         "Most done",
-                        top?.first()?.let { "${it.emoji} ${it.title}" } ?: "–",
+                        top?.first()?.let { if (LocalShowEmoji.current) "${it.emoji} ${it.title}".trim() else it.title } ?: "–",
                         top?.let { "${it.size}× this week" } ?: "Nothing yet",
                     )
                 }

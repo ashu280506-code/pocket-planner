@@ -43,6 +43,7 @@ import com.ashu.pocketplanner.data.Completion
 import com.ashu.pocketplanner.data.Moods
 import com.ashu.pocketplanner.data.Reminder
 import com.ashu.pocketplanner.data.Repeat
+import com.ashu.pocketplanner.data.TaskColors
 import com.ashu.pocketplanner.logic.Fmt
 import com.ashu.pocketplanner.logic.Plan
 import java.time.LocalDate
@@ -122,7 +123,7 @@ fun CalendarScreen(
         }
 
         item {
-            val open = Plan.dayOpen(s, selected, today) + if (selected == today) Plan.overdue(s, today) else emptyList()
+            val open = Plan.dayList(s, selected, today)
             val done = Plan.doneOn(s, selected)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -153,6 +154,7 @@ fun CalendarScreen(
                             val canTick = r.repeat == Repeat.NONE || r.date == selected || Plan.isOverdue(r, today)
                             ReminderRow(
                                 r, today, tickable = canTick,
+                                marker = Color(TaskColors.at(i)),
                                 onTick = { onTick(r, if (Plan.isOverdue(r, today)) (r.date ?: selected) else selected) },
                                 onOpen = { onOpen(r) },
                             )
@@ -176,7 +178,7 @@ fun CalendarScreen(
 @Composable
 private fun RowScope.DayCell(s: AppState, d: LocalDate, today: LocalDate, selected: Boolean, onClick: () -> Unit) {
     val p = LocalPalette.current
-    val count = Plan.countOn(s, d)
+    val count = Plan.dayList(s, d, today).size
     val doneCount = s.history.count { it.date == d }
     val mood = s.moods[d]
     val shape = RoundedCornerShape(12.dp)
@@ -205,8 +207,14 @@ private fun RowScope.DayCell(s: AppState, d: LocalDate, today: LocalDate, select
             )
             Spacer(Modifier.height(3.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.height(5.dp)) {
-                repeat(minOf(count, 3)) {
-                    Box(Modifier.size(5.dp).clip(CircleShape).background(if (selected) p.onAccent else p.warm))
+                repeat(minOf(count, 5)) { i ->
+                    Box(
+                        Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(Color(TaskColors.at(i)))
+                            .then(if (selected) Modifier.border(0.5.dp, p.onAccent, CircleShape) else Modifier),
+                    )
                 }
                 if (count == 0 && doneCount > 0) {
                     Box(Modifier.size(5.dp).clip(CircleShape).background(if (selected) p.onAccent else p.accent))

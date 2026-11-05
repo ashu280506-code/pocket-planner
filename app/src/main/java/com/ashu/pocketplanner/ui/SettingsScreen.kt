@@ -153,6 +153,7 @@ fun SettingsScreen(s: AppState, repo: Repo, photo: ImageBitmap?, onClose: () -> 
             item {
                 Card("Look") {
                     ToggleRow("Dark mode", "On by default. Turn off for the light Paper look. Your own colour sets its own brightness.", st.dark) { v -> repo.settings { it.copy(dark = v) } }
+                    ToggleRow("Show emojis", "Little pictures next to your tasks, in the app and on the widget", st.emojis) { v -> repo.settings { it.copy(emojis = v) } }
                     Label("Theme")
                     ChipRowPadded {
                         ThemePreset.entries.forEach { t ->
@@ -251,7 +252,7 @@ fun SettingsScreen(s: AppState, repo: Repo, photo: ImageBitmap?, onClose: () -> 
             item {
                 Card("Widget") {
                     Text(
-                        "Long-press your home screen, tap Widgets, find Pocket Planner and drag it out. Resize it to 2×2, 4×1, 4×2 or 4×4.",
+                        "Long-press your home screen, tap Widgets, find Pocket Planner and drag it out. Resize it to 2×2, 4×1, 4×2 or 4×4. Use the ‹ › arrows on it to jump between days that have something planned.",
                         style = MaterialTheme.typography.bodySmall, color = p.sub,
                     )
                     Label("Skin")
@@ -263,8 +264,9 @@ fun SettingsScreen(s: AppState, repo: Repo, photo: ImageBitmap?, onClose: () -> 
                             }
                         }
                     }
-                    Label("Widget font")
-                    ChipRowPadded {
+                    ToggleRow("Mix fonts", "Every task on the widget gets its own font style", st.widgetMixFonts) { v -> repo.settings { it.copy(widgetMixFonts = v) } }
+                    if (!st.widgetMixFonts) Label("Widget font")
+                    if (!st.widgetMixFonts) ChipRowPadded {
                         FontChoice.entries.forEach { f -> GlassChip(widgetFontName(f), st.widgetFont == f) { repo.settings { it.copy(widgetFont = f) } } }
                     }
                     Label("Widget photo")

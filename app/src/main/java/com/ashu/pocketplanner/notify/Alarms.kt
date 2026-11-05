@@ -128,7 +128,7 @@ object Alarms {
             while (!d.isAfter(today)) {
                 if (Plan.occursOn(r, d)) {
                     val m = ms(d, t)
-                    if (m > from && m <= now && m > r.updatedAt) notifyReminder(ctx, r, d)
+                    if (m > from && m <= now && m > r.updatedAt) notifyReminder(ctx, s, r, d)
                 }
                 d = d.plusDays(1)
             }
@@ -147,7 +147,7 @@ object Alarms {
     )
 
     @SuppressLint("MissingPermission")
-    private fun notifyReminder(ctx: Context, r: Reminder, d: LocalDate) {
+    private fun notifyReminder(ctx: Context, s0: AppState, r: Reminder, d: LocalDate) {
         val nm = NotificationManagerCompat.from(ctx)
         if (!nm.areNotificationsEnabled()) return
         val nid = (r.id + d.toString()).hashCode()
@@ -168,7 +168,7 @@ object Alarms {
         val n = NotificationCompat.Builder(ctx, CH_REMINDERS)
             .setSmallIcon(R.drawable.ic_stat)
             .setColor(ACCENT)
-            .setContentTitle("${r.emoji} ${r.title}".trim())
+            .setContentTitle((if (s0.settings.emojis) "${r.emoji} ${r.title}" else r.title).trim())
             .setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
@@ -187,7 +187,7 @@ object Alarms {
         if (items.isEmpty()) return
         val style = NotificationCompat.InboxStyle()
         items.take(6).forEach { r ->
-            style.addLine(listOfNotNull(r.emoji, r.title, r.time?.let { Fmt.time(it) }).joinToString(" "))
+            style.addLine(listOfNotNull(r.emoji.takeIf { s.settings.emojis }, r.title, r.time?.let { Fmt.time(it) }).joinToString(" "))
         }
         if (items.size > 6) style.setSummaryText("+${items.size - 6} more")
         val title = if (items.size == 1) "1 thing today" else "${items.size} things today"

@@ -53,6 +53,8 @@ import com.ashu.pocketplanner.logic.Plan
 import java.time.LocalDate
 import java.time.LocalTime
 
+private const val NO_EMOJI = "none"
+
 sealed interface Editing {
     data class New(val date: LocalDate?) : Editing
     data class Edit(val r: Reminder) : Editing
@@ -81,7 +83,7 @@ fun EditSheet(
     }
     var title by remember { mutableStateOf(orig?.title ?: "") }
     var note by remember { mutableStateOf(orig?.note ?: "") }
-    var pickedEmoji by remember { mutableStateOf(orig?.emoji ?: "") }
+    var pickedEmoji by remember { mutableStateOf(if (orig != null && orig.emoji.isBlank()) NO_EMOJI else orig?.emoji ?: "") }
     var date by remember { mutableStateOf(startDate) }
     var time by remember { mutableStateOf(orig?.time) }
     var repeat by remember { mutableStateOf(orig?.repeat ?: Repeat.NONE) }
@@ -90,7 +92,11 @@ fun EditSheet(
     var showEmoji by remember { mutableStateOf(false) }
     var openRow by remember { mutableStateOf<String?>(null) }
 
-    val emoji = pickedEmoji.ifBlank { EmojiGuess.guess(title) }
+    val emoji = when (pickedEmoji) {
+        NO_EMOJI -> ""
+        "" -> EmojiGuess.guess(title)
+        else -> pickedEmoji
+    }
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = p.accent,
@@ -159,7 +165,7 @@ fun EditSheet(
                         .clickable { showEmoji = !showEmoji },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(emoji, fontSize = 28.sp)
+                    Text(emoji.ifBlank { "∅" }, fontSize = if (emoji.isBlank()) 22.sp else 28.sp, color = p.sub)
                 }
                 Spacer(Modifier.width(12.dp))
                 OutlinedTextField(
@@ -189,7 +195,8 @@ fun EditSheet(
                             }
                         }
                     }
-                    if (pickedEmoji.isNotBlank()) {
+                    Row {
+                        TextButton(onClick = { pickedEmoji = NO_EMOJI; showEmoji = false }) { Text("No emoji", color = p.sub) }
                         TextButton(onClick = { pickedEmoji = ""; showEmoji = false }) { Text("Pick automatically", color = p.accent) }
                     }
                 }

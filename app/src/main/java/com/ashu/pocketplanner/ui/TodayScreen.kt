@@ -155,8 +155,10 @@ fun TodayScreen(
                     ) {
                         Text("NEXT UP", style = MaterialTheme.typography.labelSmall, color = p.warm, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                         Spacer(Modifier.width(12.dp))
-                        Text(next.emoji.ifBlank { "📌" }, fontSize = 18.sp)
-                        Spacer(Modifier.width(6.dp))
+                        if (LocalShowEmoji.current && next.emoji.isNotBlank()) {
+                            Text(next.emoji, fontSize = 18.sp)
+                            Spacer(Modifier.width(6.dp))
+                        }
                         Text(next.title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = p.text, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         val nt = next.time
                         val d = next.date
@@ -247,7 +249,7 @@ private fun CountdownCard(r: Reminder, days: Long, onClick: () -> Unit) {
             Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text("${r.emoji} ${r.title}".trim(), style = MaterialTheme.typography.bodyMedium, color = p.text, maxLines = 1, fontWeight = FontWeight.Medium)
+            Text((if (LocalShowEmoji.current) "${r.emoji} ${r.title}" else r.title).trim(), style = MaterialTheme.typography.bodyMedium, color = p.text, maxLines = 1, fontWeight = FontWeight.Medium)
             Text(
                 when (days) {
                     0L -> "Today!"

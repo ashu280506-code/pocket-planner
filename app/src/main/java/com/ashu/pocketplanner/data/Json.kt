@@ -82,6 +82,7 @@ object Json {
         put("widgetFog", s.widgetFog.toDouble()); put("widgetPhotoVersion", s.widgetPhotoVersion)
         put("digest", s.digest); put("digestHour", s.digestHour); put("askedNotif", s.askedNotif)
         put("name", s.name); put("onboarded", s.onboarded); put("customColor", s.customColor)
+        put("emojis", s.emojis); put("widgetMixFonts", s.widgetMixFonts)
     }
 
     private fun settings(o: JSONObject): Settings {
@@ -105,6 +106,8 @@ object Json {
             name = o.optString("name", ""),
             onboarded = o.optBoolean("onboarded", false),
             customColor = o.optLong("customColor", d.customColor),
+            emojis = o.optBoolean("emojis", true),
+            widgetMixFonts = o.optBoolean("widgetMixFonts", false),
         )
     }
 

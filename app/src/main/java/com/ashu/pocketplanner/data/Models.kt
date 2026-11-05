@@ -67,6 +67,10 @@ data class Settings(
     val name: String = "",
     /** Background colour picked on the colour wheel (ARGB). */
     val customColor: Long = 0xFF2B2F6BL,
+    /** Emojis next to tasks, in the app and on the widget. */
+    val emojis: Boolean = true,
+    /** Each task on the widget gets its own font style. */
+    val widgetMixFonts: Boolean = false,
     val onboarded: Boolean = false,
 )
 
@@ -79,6 +83,12 @@ data class AppState(
     val settings: Settings = Settings(),
     val lastCheck: Long = 0L,
 )
+
+/** Fixed colour order for tasks on a day: 1st yellow, 2nd red, 3rd blue, 4th green, 5th purple, 6th pink. */
+object TaskColors {
+    val all = listOf(0xFFFFC93CL, 0xFFFF5A5FL, 0xFF4DA3FFL, 0xFF3DDC97L, 0xFFB388FFL, 0xFFFF7AC6L)
+    fun at(i: Int): Long = all[i % all.size]
+}
 
 object Moods {
     val emojis = listOf("😄", "🙂", "😐", "😕", "😢")

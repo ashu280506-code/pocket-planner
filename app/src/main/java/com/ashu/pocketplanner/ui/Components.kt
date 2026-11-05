@@ -205,18 +205,26 @@ fun ReminderRow(
     today: LocalDate,
     tickable: Boolean,
     showDate: Boolean = false,
+    marker: Color? = null,
     onTick: () -> Unit,
     onOpen: () -> Unit,
 ) {
     val p = LocalPalette.current
+    val showEmoji = LocalShowEmoji.current
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TickCircle(done = false, enabled = tickable, onClick = onTick)
         Spacer(Modifier.width(12.dp))
-        Text(r.emoji.ifBlank { "📌" }, fontSize = 22.sp)
-        Spacer(Modifier.width(10.dp))
+        if (marker != null) {
+            Box(Modifier.size(9.dp).clip(CircleShape).background(marker))
+            Spacer(Modifier.width(10.dp))
+        }
+        if (showEmoji && r.emoji.isNotBlank()) {
+            Text(r.emoji, fontSize = 22.sp)
+            Spacer(Modifier.width(10.dp))
+        }
         Column(Modifier.weight(1f)) {
             Text(
                 r.title,
@@ -262,8 +270,10 @@ fun DoneRow(c: Completion, onUntick: (() -> Unit)?) {
     ) {
         TickCircle(done = true, enabled = onUntick != null) { onUntick?.invoke() }
         Spacer(Modifier.width(12.dp))
-        Text(c.emoji.ifBlank { "📌" }, fontSize = 20.sp)
-        Spacer(Modifier.width(10.dp))
+        if (LocalShowEmoji.current && c.emoji.isNotBlank()) {
+            Text(c.emoji, fontSize = 20.sp)
+            Spacer(Modifier.width(10.dp))
+        }
         Text(
             c.title,
             modifier = Modifier.weight(1f),

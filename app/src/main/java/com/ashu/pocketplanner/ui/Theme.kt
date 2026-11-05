@@ -182,6 +182,7 @@ private fun typographyFor(f: Fonts): Typography {
 }
 
 val LocalPalette = staticCompositionLocalOf { paletteFor(Settings()) }
+val LocalShowEmoji = staticCompositionLocalOf { true }
 val LocalFonts = staticCompositionLocalOf { Fonts(FontFamily.Default, FontFamily.Default, 1f) }
 
 @Composable
@@ -206,7 +207,7 @@ fun PlannerTheme(settings: Settings, content: @Composable () -> Unit) {
             surfaceContainerLow = p.sheet, outline = p.border, error = p.danger,
         )
     }
-    CompositionLocalProvider(LocalPalette provides p, LocalFonts provides f) {
+    CompositionLocalProvider(LocalPalette provides p, LocalFonts provides f, LocalShowEmoji provides settings.emojis) {
         MaterialTheme(colorScheme = scheme, typography = typography, content = content)
     }
 }

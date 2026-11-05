@@ -61,7 +61,7 @@ fun NotesScreen(
                 shape = shape,
             ) {
                 Column(Modifier.padding(14.dp)) {
-                    Text(n.emoji.ifBlank { "📝" }, fontSize = 24.sp)
+                    if (LocalShowEmoji.current && n.emoji.isNotBlank()) Text(n.emoji, fontSize = 24.sp)
                     Text(
                         n.title,
                         style = MaterialTheme.typography.titleMedium,
