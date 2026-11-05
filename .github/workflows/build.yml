@@ -1,0 +1,65 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Download Nothing Glyph SDK
+        run: |
+          mkdir -p app/libs
+          curl -fsSL -o app/libs/glyph-matrix-sdk-2.0.aar \
+            https://github.com/Nothing-Developer-Programme/Glyph-Developer-Kit/raw/main/sdk/glyph-matrix-sdk-2.0.aar
+
+      - name: Build release APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew assembleRelease --stacktrace --no-daemon 2>&1 | tee build.log
+
+      - name: Publish APK as a release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk PocketPlanner.apk
+          gh release create "v1.0.${{ github.run_number }}" PocketPlanner.apk \
+            --title "Pocket Planner 1.0.${{ github.run_number }}" \
+            --notes "Open this page on your phone, tap PocketPlanner.apk to download, then open it to install. Installing over an older version keeps your reminders." \
+            --latest
+          gh release delete build-failed --yes --cleanup-tag || true
+
+      - name: Share build errors
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          touch build.log
+          { grep -nE "^e: |error:|What went wrong|FAILED|Unresolved|Could not" -A4 build.log | head -400; echo "-----"; tail -120 build.log; } > errors.txt || true
+          gh release delete build-failed --yes --cleanup-tag || true
+          gh release create build-failed errors.txt build.log --prerelease \
+            --title "Last build failed" --notes "Build ${{ github.run_number }} failed. errors.txt has the details."

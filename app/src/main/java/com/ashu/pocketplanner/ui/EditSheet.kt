@@ -1,0 +1,301 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
+package com.ashu.pocketplanner.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.ashu.pocketplanner.data.Reminder
+import com.ashu.pocketplanner.data.Repeat
+import com.ashu.pocketplanner.logic.EmojiGuess
+import com.ashu.pocketplanner.logic.Fmt
+import com.ashu.pocketplanner.logic.Plan
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneOffset
+
+sealed interface Editing {
+    data class New(val date: LocalDate?) : Editing
+    data class Edit(val r: Reminder) : Editing
+}
+
+private val EMOJIS = listOf(
+    "📌", "📞", "📝", "📚", "🧪", "💻", "🏋️", "🏃", "🧘", "💧", "💊", "🩺", "💸", "🛒", "🍽️", "☕",
+    "🎂", "🎉", "🎁", "🎬", "🎵", "🎮", "✈️", "🧳", "🏠", "🧺", "🪴", "🙏", "✉️", "🤝", "⏰", "💡",
+    "❤️", "⭐", "🔥", "🎯", "😴", "🐶", "⚽", "🏏",
+)
+
+private val TIME_PRESETS = listOf(LocalTime.of(9, 0), LocalTime.of(13, 0), LocalTime.of(18, 0), LocalTime.of(21, 0))
+
+@Composable
+fun EditSheet(
+    editing: Editing,
+    today: LocalDate,
+    onDismiss: () -> Unit,
+    onSave: (Reminder) -> Unit,
+    onDelete: (Reminder) -> Unit,
+) {
+    val p = LocalPalette.current
+    val orig = (editing as? Editing.Edit)?.r
+    val startDate = when (editing) {
+        is Editing.Edit -> editing.r.date
+        is Editing.New -> editing.date
+    }
+    var title by remember { mutableStateOf(orig?.title ?: "") }
+    var note by remember { mutableStateOf(orig?.note ?: "") }
+    var pickedEmoji by remember { mutableStateOf(orig?.emoji ?: "") }
+    var date by remember { mutableStateOf(startDate) }
+    var time by remember { mutableStateOf(orig?.time) }
+    var repeat by remember { mutableStateOf(orig?.repeat ?: Repeat.NONE) }
+    var urgent by remember { mutableStateOf(orig?.urgent ?: false) }
+    var countdown by remember { mutableStateOf(orig?.countdown ?: false) }
+    var showDate by remember { mutableStateOf(false) }
+    var showTime by remember { mutableStateOf(false) }
+    var showEmoji by remember { mutableStateOf(false) }
+
+    val emoji = pickedEmoji.ifBlank { EmojiGuess.guess(title) }
+    val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = p.accent,
+        unfocusedBorderColor = p.border,
+        focusedTextColor = p.text,
+        unfocusedTextColor = p.text,
+        cursorColor = p.accent,
+        focusedPlaceholderColor = p.sub,
+        unfocusedPlaceholderColor = p.sub,
+    )
+
+    fun save() {
+        if (title.isBlank()) return
+        val d = date
+        val now = System.currentTimeMillis()
+        val base = orig ?: Reminder(id = Plan.newId(), title = "", createdAt = now)
+        onSave(
+            base.copy(
+                title = title.trim(),
+                note = note.trim(),
+                emoji = emoji,
+                date = d,
+                time = if (d == null) null else time,
+                repeat = if (d == null) Repeat.NONE else repeat,
+                anchorDay = d?.dayOfMonth ?: 1,
+                urgent = urgent,
+                countdown = d != null && countdown,
+                done = if (orig != null && orig.date == d) orig.done else false,
+            )
+        )
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheet,
+        containerColor = p.sheet,
+        contentColor = p.text,
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                when {
+                    orig != null -> if (date == null) "Edit note" else "Edit reminder"
+                    date == null -> "New note"
+                    else -> "New reminder"
+                },
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = p.text,
+            )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(p.glassHi)
+                        .border(1.dp, p.border, RoundedCornerShape(18.dp))
+                        .clickable { showEmoji = !showEmoji },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(emoji, fontSize = 28.sp)
+                }
+                Spacer(Modifier.width(12.dp))
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("What's it about?") },
+                    maxLines = 3,
+                    colors = fieldColors,
+                    shape = RoundedCornerShape(16.dp),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                )
+            }
+
+            if (showEmoji) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    EMOJIS.chunked(EMOJIS.size / 2).forEach { rowList ->
+                        Row(Modifier.horizontalScroll(rememberScrollState())) {
+                            rowList.forEach { e ->
+                                Box(
+                                    Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).clickable {
+                                        pickedEmoji = e
+                                        showEmoji = false
+                                    },
+                                    contentAlignment = Alignment.Center,
+                                ) { Text(e, fontSize = 24.sp) }
+                            }
+                        }
+                    }
+                    if (pickedEmoji.isNotBlank()) {
+                        TextButton(onClick = { pickedEmoji = ""; showEmoji = false }) { Text("Pick automatically", color = p.accent) }
+                    }
+                }
+            }
+
+            Label("When")
+            ChipRow {
+                val d = date
+                GlassChip("Today", d == today) { date = today }
+                GlassChip("Tomorrow", d == today.plusDays(1)) { date = today.plusDays(1) }
+                val custom = d != null && d != today && d != today.plusDays(1)
+                GlassChip(if (custom && d != null) Fmt.day(d) else "Pick date", custom) { showDate = true }
+                GlassChip("No date (note)", d == null) { date = null }
+            }
+
+            if (date != null) {
+                Label("Time")
+                ChipRow {
+                    val t = time
+                    GlassChip("No time", t == null) { time = null }
+                    TIME_PRESETS.forEach { pt -> GlassChip(Fmt.time(pt), t == pt) { time = pt } }
+                    val customTime = t != null && t !in TIME_PRESETS
+                    GlassChip(if (customTime && t != null) Fmt.time(t) else "Pick time", customTime) { showTime = true }
+                }
+
+                Label("Repeat")
+                ChipRow {
+                    Repeat.entries.forEach { rp -> GlassChip(rp.label, repeat == rp) { repeat = rp } }
+                }
+
+                Glass(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) {
+                        ToggleRow("🔥 Urgent", "Floats to the top of your list", urgent) { urgent = it }
+                        ToggleRow("🎯 Countdown", "Shows the days left on Today and the widget", countdown) { countdown = it }
+                    }
+                }
+            }
+
+            Label("Notes")
+            OutlinedTextField(
+                value = note,
+                onValueChange = { note = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text(if (date == null) "Write your note…" else "Anything else to remember") },
+                minLines = 3,
+                colors = fieldColors,
+                shape = RoundedCornerShape(16.dp),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (orig != null) {
+                    OutlinedButton(onClick = { onDelete(orig) }) { Text("Delete", color = p.danger) }
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onDismiss) { Text("Cancel", color = p.sub) }
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = { save() },
+                    enabled = title.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
+                ) { Text("Save", fontWeight = FontWeight.SemiBold) }
+            }
+        }
+    }
+
+    if (showDate) {
+        val st = rememberDatePickerState(
+            initialSelectedDateMillis = (date ?: today).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDate = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    st.selectedDateMillis?.let { date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
+                    showDate = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDate = false }) { Text("Cancel") } },
+        ) {
+            DatePicker(state = st)
+        }
+    }
+
+    if (showTime) {
+        val st = rememberTimePickerState(initialHour = time?.hour ?: 9, initialMinute = time?.minute ?: 0, is24Hour = false)
+        AlertDialog(
+            onDismissRequest = { showTime = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    time = LocalTime.of(st.hour, st.minute)
+                    showTime = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showTime = false }) { Text("Cancel") } },
+            title = { Text("Pick a time") },
+            text = { TimePicker(state = st) },
+            containerColor = p.sheet,
+        )
+    }
+}
