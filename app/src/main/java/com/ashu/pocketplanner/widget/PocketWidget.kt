@@ -234,7 +234,7 @@ private fun WidgetBody(s: AppState, stored: LocalDate?) {
         when {
             h < 100f -> Slim(open, today, look, openApp, addNew)
             w < 200f -> Small(open, done, today, look, openApp, addNew)
-            else -> Full(s, stored, today, look, h, openApp, addNew)
+            else -> Full(s, stored, today, look, w, h, openApp, addNew)
         }
     }
 }
@@ -376,6 +376,96 @@ private fun Small(open: List<Reminder>, done: List<Completion>, today: LocalDate
     }
 }
 
+private fun cdShort(title: String, days: Long): String {
+    val t = if (title.length > 14) title.take(13).trimEnd() + "…" else title
+    val d = when (days) {
+        0L -> "today"
+        1L -> "tmrw"
+        else -> "${days}d"
+    }
+    return "$t · $d"
+}
+
+private fun pillWidth(text: String): Float = text.length * 6.8f + 26f
+
+/**
+ * Fits countdown pills into [rows] rows of [widthDp]. Whatever doesn't fit is returned
+ * as overflow, and a "+N" pill takes the last slot so you know there are more.
+ */
+private fun packCountdowns(all: List<Pair<Reminder, Long>>, widthDp: Float, rows: Int): Pair<List<List<Pair<Reminder, Long>>>, List<Pair<Reminder, Long>>> {
+    val room = widthDp - 20f - 8f - 26f - 48f
+    val out = mutableListOf(mutableListOf<Pair<Reminder, Long>>())
+    var used = 0f
+    var placed = 0
+    for (c in all) {
+        val w = pillWidth(cdShort(c.first.title, c.second))
+        if (used + w > room && out.last().isNotEmpty()) {
+            if (out.size == rows) break
+            out += mutableListOf<Pair<Reminder, Long>>()
+            used = 0f
+        }
+        out.last() += c
+        used += w
+        placed++
+    }
+    if (placed < all.size) {
+        val last = out.last()
+        var lastUsed = last.sumOf { pillWidth(cdShort(it.first.title, it.second)).toDouble() }.toFloat()
+        while (last.size > 1 && lastUsed + 44f > room) {
+            lastUsed -= pillWidth(cdShort(last.last().first.title, last.last().second))
+            last.removeAt(last.lastIndex)
+        }
+    }
+    val shown = out.flatten().map { it.first.id }.toSet()
+    return out to all.filter { it.first.id !in shown }
+}
+
+@Composable
+private fun CountdownPills(rows: List<List<Pair<Reminder, Long>>>, extra: Int, look: Look, openApp: Action) {
+    Column(modifier = GlanceModifier.padding(start = 4.dp, end = 48.dp)) {
+        rows.forEachIndexed { r, row ->
+            if (r > 0) Spacer(GlanceModifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(if (r == 0) "🎯 " else "     ", style = ts(12, Gold, look.fam))
+                row.forEachIndexed { i, (rem, days) ->
+                    if (i > 0) Spacer(GlanceModifier.width(5.dp))
+                    Text(
+                        cdShort(rem.title, days),
+                        style = ts(11, Gold, look.famFor(rem.id), bold = days <= 1L),
+                        maxLines = 1,
+                        modifier = GlanceModifier.background(ImageProvider(R.drawable.w_pill)).padding(horizontal = 9.dp, vertical = 4.dp).clickable(openApp),
+                    )
+                }
+                if (extra > 0 && r == rows.lastIndex) {
+                    Spacer(GlanceModifier.width(5.dp))
+                    Text(
+                        "+$extra",
+                        style = ts(11, Gold, look.fam, bold = true),
+                        modifier = GlanceModifier.background(ImageProvider(R.drawable.w_pill)).padding(horizontal = 9.dp, vertical = 4.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CountdownLine(rem: Reminder, days: Long, look: Look) {
+    Row(modifier = GlanceModifier.fillMaxWidth().padding(start = 6.dp, top = 3.dp, bottom = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("🎯", style = ts(12, Gold, look.fam))
+        Spacer(GlanceModifier.width(8.dp))
+        Text(look.label(rem.emoji, rem.title), modifier = GlanceModifier.defaultWeight(), style = ts(13, White, look.famFor(rem.id)), maxLines = 1)
+        Text(
+            when (days) {
+                0L -> "today"
+                1L -> "tomorrow"
+                else -> "$days days"
+            },
+            style = ts(12, Gold, look.fam, bold = true),
+        )
+    }
+}
+
 private fun navAction(d: LocalDate) = actionRunCallback<DayNavAction>(actionParametersOf(KEY_NAV to d.toString()))
 
 /** 4x2 and bigger: ‹ day › header, a scrolling list, countdown, and on 4x4 the week strip and mood. */
@@ -385,6 +475,7 @@ private fun Full(
     stored: LocalDate?,
     today: LocalDate,
     look: Look,
+    w: Float,
     h: Float,
     openApp: Action,
     add: Action,
@@ -400,7 +491,8 @@ private fun Full(
     val open = Plan.dayList(s, day, today)
     val done = if (isToday) Plan.doneOn(s, today) else emptyList()
     val total = open.size + done.size
-    val countdown = Plan.countdowns(s, today).firstOrNull()
+    val (pillRows, moreCountdowns) = packCountdowns(Plan.countdowns(s, today), w, if (tall) 2 else 1)
+    val hasPills = pillRows.any { it.isNotEmpty() }
 
     Box(modifier = GlanceModifier.fillMaxSize()) {
         Column(modifier = GlanceModifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 10.dp)) {
@@ -435,26 +527,31 @@ private fun Full(
                 WeekStrip(s, day, today, look)
                 Spacer(GlanceModifier.height(4.dp))
             }
-            if (open.isEmpty() && done.isEmpty()) {
-                Text(
-                    "Nothing planned. Tap + to add something ✨",
-                    style = ts(13, Sub, look.fam),
-                    modifier = GlanceModifier.padding(start = 6.dp).defaultWeight().clickable(add),
-                )
-            } else {
-                LazyColumn(modifier = GlanceModifier.fillMaxWidth().defaultWeight().padding(start = 4.dp, end = 4.dp)) {
-                    items(open.size, itemId = { it.toLong() + 1L }) { i -> ItemRow(open[i], i, day, today, look) }
-                    items(done.size, itemId = { it.toLong() + 10_001L }) { i -> DoneRow(done[i], look) }
-                    item(itemId = 99_999L) { Spacer(GlanceModifier.height(40.dp)) }
+            LazyColumn(modifier = GlanceModifier.fillMaxWidth().defaultWeight().padding(start = 4.dp, end = 4.dp)) {
+                if (open.isEmpty() && done.isEmpty()) {
+                    item(itemId = 5L) {
+                        Text(
+                            "Nothing planned. Tap + to add something ✨",
+                            style = ts(13, Sub, look.fam),
+                            modifier = GlanceModifier.padding(start = 2.dp, top = 4.dp, bottom = 4.dp).clickable(add),
+                        )
+                    }
                 }
+                items(open.size, itemId = { it.toLong() + 1_001L }) { i -> ItemRow(open[i], i, day, today, look) }
+                items(done.size, itemId = { it.toLong() + 10_001L }) { i -> DoneRow(done[i], look) }
+                if (moreCountdowns.isNotEmpty()) {
+                    item(itemId = 50_000L) {
+                        Text("MORE COUNTDOWNS", style = ts(10, Sub, look.fam, bold = true), modifier = GlanceModifier.padding(start = 6.dp, top = 8.dp, bottom = 2.dp))
+                    }
+                    items(moreCountdowns.size, itemId = { it.toLong() + 50_001L }) { i ->
+                        CountdownLine(moreCountdowns[i].first, moreCountdowns[i].second, look)
+                    }
+                }
+                item(itemId = 99_999L) { Spacer(GlanceModifier.height(40.dp)) }
             }
-            if (countdown != null) {
-                Text(
-                    "🎯 " + Fmt.countdown(countdown.first.title, countdown.second),
-                    style = ts(11, Gold, look.fam),
-                    maxLines = 1,
-                    modifier = GlanceModifier.padding(start = 4.dp).background(ImageProvider(R.drawable.w_pill)).padding(horizontal = 10.dp, vertical = 4.dp),
-                )
+            if (hasPills) {
+                Spacer(GlanceModifier.height(2.dp))
+                CountdownPills(pillRows.filter { it.isNotEmpty() }, moreCountdowns.size, look, openApp)
             }
             if (tall) {
                 Spacer(GlanceModifier.height(4.dp))
